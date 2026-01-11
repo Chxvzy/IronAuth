@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="16b0e52e-396f-421b-891e-8fe232870e79" name="Changes" comment="fim do sistema de proteção de senha para usuarios, com banco de dados">
+    <list default="true" id="16b0e52e-396f-421b-891e-8fe232870e79" name="Changes" comment="Add: token para sessão ativa, token único.">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/users.json" beforeDir="false" afterPath="$PROJECT_DIR$/users.json" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -76,11 +77,31 @@
       <option name="project" value="LOCAL" />
       <updated>1767984525571</updated>
     </task>
-    <option name="localTasksCounter" value="3" />
+    <task id="LOCAL-00003" summary="Add: token para sessão ativa, token único.">
+      <option name="closed" value="true" />
+      <created>1768097180382</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1768097180382</updated>
+    </task>
+    <option name="localTasksCounter" value="4" />
     <servers />
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
   </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="fim do sistema de proteção de senha para usuarios, com banco de dados" />
-    <option name="LAST_COMMIT_MESSAGE" value="fim do sistema de proteção de senha para usuarios, com banco de dados" />
+    <MESSAGE value="Add: token para sessão ativa, token único." />
+    <option name="LAST_COMMIT_MESSAGE" value="Add: token para sessão ativa, token único." />
   </component>
 </project>

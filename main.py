@@ -2,7 +2,6 @@ import json, hashlib, secrets
 
 DB = "users.json"
 
-
 def load_users():
     users = []
     try:
@@ -35,7 +34,8 @@ def register():
     users.append({
         "username": username,
         "password": hashlib.sha256(password.encode()).hexdigest(),
-        "token": None
+        "token": None,
+        "reset_token": None
     })
 
     save_users(users)
@@ -84,13 +84,40 @@ def logout():
             return
     print("Invalid token")
 
+def forgot_password():
+        users = load_users()
+        username = input("Username: ")
+
+        for user in users:
+            if user["username"] == username:
+                reset = secrets.token_hex(8)
+                user["reset_token"] = reset
+                save_users(users)
+                print("Reset token:", reset)
+                break
+        else:
+            print("User not found")
+            return
+
+        reset_token = input("Enter reset token: ").strip()
+
+        for user in users:
+            if user.get("reset_token") == reset_token:
+                new_pass = input("Enter new password: ")
+                user["password"] = hashlib.sha256(new_pass.encode()).hexdigest()
+                save_users(users)
+                print("Password changed")
+                return
+
+        print("Invalid reset token")
 
 while True:
     print("\n1 - Register")
     print("2 - Login")
     print("3 - Check session")
     print("4 - Logout")
-    print("5 - Exit")
+    print("5 - Forgot password")
+    print("6 - Exit")
 
     option = input("Choose: ")
 
@@ -103,4 +130,6 @@ while True:
     elif option == "4":
         logout()
     elif option == "5":
+        forgot_password()
+    elif option == "6":
         break

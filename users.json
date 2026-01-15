@@ -2,4 +2,5 @@
 {"username": "Felp", "password": "13ce9926b63e70850f51c836f3858c1f0d042b27d6520cc7d744bf2a42846b8e", "token": null}
 {"username": "Chav", "password": "e4a275ec83df687b68f3ec0dab49adac1e6c14c721fd4e776eee1a7d26fa04c4", "token": null}
 {"username": "Eri", "password": "47fc7bee5a2a87548c85edc329d4846a98937f88627f4bb52d47ed1eaf2b35bd", "token": null}
-{"username": "Custodio", "password": "1b9070fd0a5da055936b9593c3c7d5988ba5b580631a29a021d093c3a66f6a03", "token": null, "reset_token": "58db5b851723ed8e"}
+{"username": "Custodio", "password": "cd8cc3acf19a191b938470c520ccab4e6b5f6b40e95cbd2b92e4a4bba73c329c", "token": null, "reset_token": "8efc6e1ec1337294"}
+{"username": "Lorenzo", "password": "fb0a35b5018a3a4454cad9bab0491378c2d151651ad356b5f50fa89b0516d6c0", "token": "ae63dd3f82828a080258423dbdab3935", "reset_token": null, "role": "user"}

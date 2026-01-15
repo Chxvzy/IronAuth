@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="16b0e52e-396f-421b-891e-8fe232870e79" name="Changes" comment="Add: 4 functions and menu with &quot;Register&quot;, &quot;Login&quot;, &quot;Check session&quot;, &quot;Logout&quot;, &quot;Exit&quot;">
+    <list default="true" id="16b0e52e-396f-421b-891e-8fe232870e79" name="Changes" comment="Add: &quot;5 - Forgot password&quot; function to reset password with username and a reset token.">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/users.json" beforeDir="false" afterPath="$PROJECT_DIR$/users.json" afterDir="false" />
@@ -13,6 +13,7 @@
   </component>
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+    <option name="UPDATE_TYPE" value="REBASE" />
   </component>
   <component name="GitHubPullRequestSearchHistory">{
   &quot;lastFilter&quot;: {
@@ -93,7 +94,15 @@
       <option name="project" value="LOCAL" />
       <updated>1768100242625</updated>
     </task>
-    <option name="localTasksCounter" value="5" />
+    <task id="LOCAL-00005" summary="Add: 4 functions and menu with &quot;Register&quot;, &quot;Login&quot;, &quot;Check session&quot;, &quot;Logout&quot;, &quot;Exit&quot;">
+      <option name="closed" value="true" />
+      <created>1768449523099</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1768449523099</updated>
+    </task>
+    <option name="localTasksCounter" value="6" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -111,6 +120,7 @@
     <MESSAGE value="fim do sistema de proteção de senha para usuarios, com banco de dados" />
     <MESSAGE value="Add: token para sessão ativa, token único." />
     <MESSAGE value="Add: 4 functions and menu with &quot;Register&quot;, &quot;Login&quot;, &quot;Check session&quot;, &quot;Logout&quot;, &quot;Exit&quot;" />
-    <option name="LAST_COMMIT_MESSAGE" value="Add: 4 functions and menu with &quot;Register&quot;, &quot;Login&quot;, &quot;Check session&quot;, &quot;Logout&quot;, &quot;Exit&quot;" />
+    <MESSAGE value="Add: &quot;5 - Forgot password&quot; function to reset password with username and a reset token." />
+    <option name="LAST_COMMIT_MESSAGE" value="Add: &quot;5 - Forgot password&quot; function to reset password with username and a reset token." />
   </component>
 </project>

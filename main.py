@@ -35,7 +35,9 @@ def register():
         "username": username,
         "password": hashlib.sha256(password.encode()).hexdigest(),
         "token": None,
-        "reset_token": None
+        "reset_token": None,
+        "role": "user"
+
     })
 
     save_users(users)
@@ -105,11 +107,68 @@ def forgot_password():
             if user.get("reset_token") == reset_token:
                 new_pass = input("Enter new password: ")
                 user["password"] = hashlib.sha256(new_pass.encode()).hexdigest()
+                user["token"] = None
+                user["reset_token"] = None
                 save_users(users)
                 print("Password changed")
                 return
 
         print("Invalid reset token")
+
+def admin_panel():
+    users = load_users()
+    token = input("Admin token: ").strip()
+
+    admin = None
+    for user in users:
+        if user.get("token") == token and user.get("role") == "admin":
+            admin = user
+            break
+
+    if not admin:
+        print("Access denied")
+        return
+
+
+    print("\n--- ADMIN PANEL ---")
+    print("1 - List users")
+    print("2 - Promote to mod")
+    print("3 - Promote to admin")
+    print("4 - Delete user")
+
+    choice = input("Choose: ")
+
+    if choice == "1":
+        for user in users:
+            print(user["username"], "-", user["role"])
+
+    elif choice == "2":
+        name = input("Username: ")
+        for user in users:
+            if user["username"] == name:
+                user["role"] = "mod"
+                save_users(users)
+                print("Promoted to MOD")
+
+    elif choice == "3":
+        name = input("Username: ")
+        for user in users:
+            if user["username"] == name:
+                user["role"] = "admin"
+                save_users(users)
+                print("Promoted to ADMIN")
+
+    elif choice == "4":
+        name = input("Which user to delete: ")
+
+        for user in users:
+            if user["username"] == name and user.get("token") == token:
+                print("You cannot delete yourself!")
+                return
+
+        users = [user for user in users if user["username"] != name]
+        save_users(users)
+        print("User deleted")
 
 while True:
     print("\n1 - Register")
@@ -118,6 +177,7 @@ while True:
     print("4 - Logout")
     print("5 - Forgot password")
     print("6 - Exit")
+    print("7 - Admin panel")
 
     option = input("Choose: ")
 
@@ -133,3 +193,5 @@ while True:
         forgot_password()
     elif option == "6":
         break
+    elif option == "7":
+        admin_panel()

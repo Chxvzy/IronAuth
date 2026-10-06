@@ -27,12 +27,28 @@ API de autenticação em **FastAPI + SQLite** com frontend web, sessões com exp
 > Durante os testes, encontrei uma falha: um admin secundário conseguia rebaixar o admin principal. Corrigi com a função `guard` em `main.py`.
 
 ## Como rodar
-```bash
-python -m venv .venv
-.venv\Scripts\activate        # Windows
+
+**1. Crie o ambiente e instale as dependências**
+
+Windows:
+```
+py -m venv .venv
+.venv\Scripts\activate
 pip install -r requirements.txt
+```
+
+Mac/Linux:
+```
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+**2. Inicie o servidor**
+```
 python -m uvicorn main:app --reload
 ```
+
 Abra http://localhost:8000. No primeiro start é criado o usuário `admin`, e a senha aparece no terminal (ou defina `ADMIN_PASSWORD`). A documentação das rotas fica em `/docs`.
 
 ### Variáveis de ambiente

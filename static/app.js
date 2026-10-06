@@ -1,6 +1,10 @@
 const $ = s => document.querySelector(s);
 const view = id => document.querySelectorAll("section").forEach(s => s.hidden = s.id !== id);
-const tab = n => { $("#login").hidden = n !== "login"; $("#register").hidden = n !== "register"; };
+const tab = n => {
+  $("#login").hidden = n !== "login";
+  $("#register").hidden = n !== "register";
+  $("#toforgot").hidden = n !== "login"; // "Esqueci a senha" só na tela de login
+};
 
 // Aviso que aparece no topo e some sozinho
 let tt;
@@ -74,6 +78,8 @@ document.querySelectorAll("[data-tab]").forEach(b => b.onclick = () => tab(b.dat
 $("#toforgot").onclick = e => { e.preventDefault(); msg(); view("forgot"); };
 $("#back").onclick = e => { e.preventDefault(); msg(); view("auth"); };
 $("#out").onclick = async () => { await api("logout", "POST"); msg(); view("auth"); };
+
+// Link do e-mail (#reset=token): abre direto a tela de nova senha
 const m = location.hash.match(/^#reset=([\w-]+)$/);
 if (m) { $("#reset").token.value = m[1]; history.replaceState(null, "", location.pathname); view("forgot"); }
 else home();

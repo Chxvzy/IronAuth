@@ -1,0 +1,53 @@
+[hidden]{display:none!important}
+body{margin:0;background:#0f1117;color:#e6e8ee;font-family:system-ui,sans-serif}
+main{max-width:460px;margin:8vh auto;padding:24px;background:#181b24;border:1px solid #2a2f3d;border-radius:14px}
+main.wide{max-width:760px}
+h1{margin:0 0 12px}
+h2{font-size:1rem;color:#c9cfdd;margin:22px 0 6px}
+form{display:flex;flex-direction:column;gap:10px;margin:12px 0}
+input{padding:10px;border-radius:8px;border:1px solid #2a2f3d;background:#0f1117;color:inherit}
+button{padding:9px 12px;border:0;border-radius:8px;background:#3b82f6;color:#fff;cursor:pointer}
+button.ghost{background:transparent;border:1px solid #2a2f3d;color:#c9cfdd}
+button.danger{background:#7a2a35}
+.tabs{display:flex;gap:8px}.tabs button{background:#2a2f3d;flex:1}
+a{color:#7aa7ff;font-size:.9rem}
+#msg.err{color:#ff7b7b}#msg.ok{color:#6fdc8c}
+
+.top{display:flex;justify-content:space-between;align-items:center;gap:10px;padding-bottom:14px;border-bottom:1px solid #2a2f3d}
+.who{display:flex;align-items:center;gap:10px}
+.badge{padding:2px 10px;border-radius:99px;font-size:.75rem;font-weight:600;background:#2a3350;color:#9db4ff}
+.badge.admin{background:#4a2330;color:#ff9db0}
+.badge.mod{background:#4a3a1a;color:#ffd27a}
+
+.scroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:.9rem}
+th{text-align:left;font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;color:#8b93a7;padding:6px 8px;border-bottom:1px solid #2a2f3d}
+td{padding:9px 8px;border-bottom:1px solid #20242f}
+td:last-child{white-space:nowrap;text-align:right}
+td button{padding:5px 10px;margin-left:4px;font-size:.78rem}
+
+ul{list-style:none;padding:0;margin:0}
+li{padding:7px 0;border-bottom:1px solid #20242f;font-size:.82rem;color:#c9cfdd}
+.time{color:#8b93a7;margin-right:6px}
+
+/* Tabela com altura limitada e rolagem */
+.scroll{max-height:240px;overflow:auto}
+th{position:sticky;top:0;background:#181b24}
+th:nth-child(1){width:48px}
+th:last-child{text-align:right}
+
+/* Auditoria em caixa com rolagem */
+#logs{max-height:220px;overflow-y:auto;background:#0f1117;border:1px solid #2a2f3d;border-radius:10px;padding:0 14px}
+#logs li:last-child{border-bottom:0}
+
+/* Avisos */
+#toast{position:fixed;top:18px;left:50%;transform:translateX(-50%);padding:11px 18px;border-radius:10px;font-size:.9rem;box-shadow:0 8px 24px #0008;z-index:10;max-width:90vw}
+#toast.err{background:#4a2330;color:#ffb3c0;border:1px solid #7a2a35}
+#toast.ok{background:#17382a;color:#8be6a8;border:1px solid #245c41}
+
+/* Pop-up de confirmação */
+dialog{background:#181b24;color:#e6e8ee;border:1px solid #2a2f3d;border-radius:14px;padding:22px;max-width:380px;width:calc(100% - 48px)}
+dialog::backdrop{background:#000a}
+dialog h3{margin:0 0 8px}
+dialog p{margin:0 0 18px;color:#c9cfdd}
+.dact{display:flex;justify-content:flex-end;gap:8px}

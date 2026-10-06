@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>IronAuth</title><link rel="stylesheet" href="style.css"></head>
+<body><main>
+<h1> IronAuth</h1>
+<section id="auth">
+  <div class="tabs"><button data-tab="login">Entrar</button><button data-tab="register">Criar conta</button></div>
+  <form id="login"><input name="username" placeholder="Usuário" required><input name="password" type="password" placeholder="Senha" required><button>Entrar</button></form>
+  <form id="register" hidden><input name="username" placeholder="Usuário (3-20 letras, números ou _)" required><input name="email" type="email" placeholder="E-mail" required><input name="password" type="password" placeholder="Senha (mín. 8 caracteres)" required><button>Criar conta</button></form>
+  <a href="#" id="toforgot">Esqueci a senha</a>
+</section>
+<section id="forgot" hidden>
+<form id="fgt"><input name="email" type="email" placeholder="Seu e-mail" required><button>Enviar link</button></form>
+<form id="reset"><input name="token" placeholder="Token (preenchido pelo link do e-mail)" required><input name="password" type="password" placeholder="Nova senha" required><button>Redefinir senha</button></form>
+  <a href="#" id="back">Voltar</a>
+</section>
+<section id="home" hidden>
+  <header class="top"><div class="who"><strong id="uname"></strong><span id="urole" class="badge"></span></div><button id="out" class="ghost">Sair</button></header>
+  <p id="plain" hidden>Você está logado. Apenas moderadores e administradores acessam o painel.</p>
+  <div id="admin" hidden>
+    <h2>Usuários</h2>
+    <div class="scroll"><table><thead><tr><th>ID</th><th>Usuário</th><th>Cargo</th><th>Ações</th></tr></thead><tbody id="rows"></tbody></table></div>
+    <div id="logbox" hidden><h2>Auditoria</h2><ul id="logs"></ul></div>
+  </div>
+</section>
+<div id="toast" hidden></div>
+<dialog id="dlg"><h3 id="dtitle"></h3><p id="dtext"></p><div class="dact"><button id="dno" class="ghost">Cancelar</button><button id="dyes">Confirmar</button></div></dialog>
+</main><script src="app.js"></script></body></html>

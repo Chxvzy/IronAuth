@@ -1,9 +1,12 @@
 import os, sqlite3, secrets, time, smtplib
+from dotenv import load_dotenv
 from email.message import EmailMessage
 from fastapi import FastAPI, Depends, HTTPException, Response, Cookie, BackgroundTasks
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from security import hash_password, verify_password, new_token, sha
+load_dotenv()
+
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 DB = os.getenv("IRONAUTH_DB", os.path.join(BASE, "ironauth.db"))

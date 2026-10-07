@@ -77,7 +77,7 @@ class Cred(BaseModel):
     email: str = Field(max_length=254, pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]{2,}$")
     password: str = Field(min_length=8, max_length=128)
 class Login(BaseModel):
-    username: str = Field(max_length=20)
+    username: str = Field(min_length=1, max_length=254)  # usuário ou e-mail
     password: str = Field(max_length=128)
 class Forgot(BaseModel):
     email: str = Field(max_length=254)
@@ -113,7 +113,11 @@ def register(c: Cred):
 
 @app.post("/api/login")
 def login(c: Login, resp: Response):
-    rows = q("SELECT * FROM users WHERE username=?", (c.username,))
+    ident = c.username.strip()
+    if "@" in ident:  # entrou com e-mail
+        rows = q("SELECT * FROM users WHERE email=?", (ident.lower(),))
+    else:
+        rows = q("SELECT * FROM users WHERE username=?", (ident,))
     u = rows[0] if rows else None
     if u and u["locked_until"] > time.time():
         raise HTTPException(429, "Conta bloqueada temporariamente. Tente mais tarde.")

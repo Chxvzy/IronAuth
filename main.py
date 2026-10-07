@@ -1,44 +1,58 @@
-import os, sqlite3, secrets, time, smtplib
-from dotenv import load_dotenv
+import os, ssl, secrets, time, smtplib
 from email.message import EmailMessage
-from fastapi import FastAPI, Depends, HTTPException, Response, Cookie, BackgroundTasks
+import pymysql
+from pymysql.cursors import DictCursor
+from dotenv import load_dotenv
+from fastapi import FastAPI, Depends, HTTPException, Response, Cookie
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from security import hash_password, verify_password, new_token, sha
+
 load_dotenv()
-
-
 BASE = os.path.dirname(os.path.abspath(__file__))
-DB = os.getenv("IRONAUTH_DB", os.path.join(BASE, "ironauth.db"))
+PUBLIC = next((os.path.join(BASE, d) for d in ("public", "static") if os.path.isdir(os.path.join(BASE, d))), None)
+if not os.getenv("DB_HOST"):
+    raise RuntimeError("Defina DB_HOST, DB_USER, DB_PASSWORD e DB_NAME (veja .env.example).")
 SESSION_MIN, RESET_MIN, MAX_FAILS, LOCK_MIN = 30, 15, 5, 5
+OWNER_ID = 1  # admin principal, criado no primeiro start
 DUMMY = hash_password("dummy")  # mesmo custo de tempo para usuário inexistente
 
 app = FastAPI(title="IronAuth")
 
+def tls():
+    if os.getenv("DB_SSL_CA"):
+        return {"ca": os.getenv("DB_SSL_CA")}
+    if os.getenv("DB_SSL") == "1":
+        return ssl.create_default_context()
+    return None
+
 def q(sql, args=()):
-    con = sqlite3.connect(DB)
-    con.row_factory = sqlite3.Row
+    con = pymysql.connect(
+        host=os.getenv("DB_HOST"), port=int(os.getenv("DB_PORT", "3306")),
+        user=os.getenv("DB_USER"), password=os.getenv("DB_PASSWORD"),
+        database=os.getenv("DB_NAME", "alunos_ironauth"),
+        cursorclass=DictCursor, autocommit=True, connect_timeout=10, ssl=tls())
     try:
-        cur = con.execute(sql, args)  # sempre parametrizado
-        con.commit()
-        return cur.fetchall()
+        with con.cursor() as cur:
+            cur.execute(sql.replace("?", "%s"), args)  # sempre parametrizado
+            return list(cur.fetchall())
     finally:
         con.close()
 
 def log(actor, action):
-    q("INSERT INTO audit(at, actor, action) VALUES(?,?,?)", (time.time(), actor, action))
+    q("INSERT INTO audit(`at`, actor, action) VALUES(?,?,?)", (time.time(), actor, action))
 
-@app.on_event("startup")
 def init():
-    q("CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY, username TEXT UNIQUE NOT NULL, email TEXT UNIQUE, password_hash TEXT NOT NULL, role TEXT NOT NULL DEFAULT 'user', fails INTEGER DEFAULT 0, locked_until REAL DEFAULT 0, created_at REAL)")
-    q("CREATE TABLE IF NOT EXISTS users(id INTEGER PRIMARY KEY, username TEXT UNIQUE NOT NULL, password_hash TEXT NOT NULL, role TEXT NOT NULL DEFAULT 'user', fails INTEGER DEFAULT 0, locked_until REAL DEFAULT 0, created_at REAL)")
-    q("CREATE TABLE IF NOT EXISTS sessions(token_hash TEXT PRIMARY KEY, user_id INTEGER, expires REAL)")
-    q("CREATE TABLE IF NOT EXISTS resets(token_hash TEXT PRIMARY KEY, user_id INTEGER, expires REAL, used INTEGER DEFAULT 0)")
-    q("CREATE TABLE IF NOT EXISTS audit(id INTEGER PRIMARY KEY, at REAL, actor TEXT, action TEXT)")
-    if not q("SELECT 1 FROM users"):
+    q("CREATE TABLE IF NOT EXISTS users(id BIGINT AUTO_INCREMENT PRIMARY KEY, username VARCHAR(20) UNIQUE NOT NULL, email VARCHAR(254) UNIQUE, password_hash VARCHAR(255) NOT NULL, role VARCHAR(10) NOT NULL DEFAULT 'user', fails INT DEFAULT 0, locked_until DOUBLE DEFAULT 0, created_at DOUBLE) DEFAULT CHARSET=utf8mb4")
+    q("CREATE TABLE IF NOT EXISTS sessions(token_hash CHAR(64) PRIMARY KEY, user_id BIGINT, expires DOUBLE) DEFAULT CHARSET=utf8mb4")
+    q("CREATE TABLE IF NOT EXISTS resets(token_hash CHAR(64) PRIMARY KEY, user_id BIGINT, expires DOUBLE, used INT DEFAULT 0) DEFAULT CHARSET=utf8mb4")
+    q("CREATE TABLE IF NOT EXISTS audit(id BIGINT AUTO_INCREMENT PRIMARY KEY, `at` DOUBLE, actor VARCHAR(40), action VARCHAR(120)) DEFAULT CHARSET=utf8mb4")
+    if not q("SELECT 1 FROM users LIMIT 1"):
         pw = os.getenv("ADMIN_PASSWORD") or secrets.token_urlsafe(10)
-        q("INSERT INTO users(username, password_hash, role, created_at) VALUES('admin',?, 'admin',?)", (hash_password(pw), time.time()))
+        q("INSERT IGNORE INTO users(username, password_hash, role, created_at) VALUES('admin', ?, 'admin', ?)", (hash_password(pw), time.time()))
         print(f"[IronAuth] Admin criado -> usuário: admin | senha: {pw}")
+
+init()  # roda ao carregar (também no cold start da Vercel)
 
 @app.middleware("http")
 async def security_headers(request, call_next):
@@ -84,7 +98,7 @@ def register(c: Cred):
     try:
         q("INSERT INTO users(username, email, password_hash, created_at) VALUES(?,?,?,?)",
           (c.username, c.email.strip().lower(), hash_password(c.password), time.time()))
-    except sqlite3.IntegrityError:
+    except pymysql.err.IntegrityError:
         raise HTTPException(400, "Usuário ou e-mail indisponível.")
     log(c.username, "register")
     return {"ok": True}
@@ -128,7 +142,7 @@ def send_reset(to, token):
         return
     try:
         m = EmailMessage()
-        m["Subject"], m["From"], m["To"] = "IronAuth: redefinir senha", user, to
+        m["Subject"], m["From"], m["To"] = "IronAuth: redefinir senha", f"IronAuth <{user}>", to
         m.set_content(f"Abra o link para criar uma nova senha (vale 15 minutos e só funciona uma vez):\n\n{link}\n\nSe não foi você, ignore este e-mail.")
         with smtplib.SMTP_SSL(host, 465) as s:
             s.login(user, pw)
@@ -137,15 +151,14 @@ def send_reset(to, token):
         print("[IronAuth] erro ao enviar e-mail:", e)
 
 @app.post("/api/forgot-password")
-def forgot(f: Forgot, tasks: BackgroundTasks):
+def forgot(f: Forgot):
     email = f.email.strip().lower()
     rows = q("SELECT id FROM users WHERE email=?", (email,))
     if rows:
         tok = new_token()
         q("INSERT INTO resets VALUES(?,?,?,0)", (sha(tok), rows[0]["id"], time.time() + RESET_MIN * 60))
-        tasks.add_task(send_reset, email, tok)  # envio em segundo plano: o tempo de resposta não revela se o e-mail existe
+        send_reset(email, tok)  # envio direto: em serverless, tarefas em segundo plano podem ser cortadas
     return {"message": "Se o e-mail estiver cadastrado, enviamos um link para redefinir a senha."}
-
 
 @app.post("/api/reset-password")
 def reset(r: Reset):
@@ -161,9 +174,7 @@ def reset(r: Reset):
 
 @app.get("/api/admin/users")
 def list_users(u=Depends(need("mod", "admin"))):
-    return [dict(r) for r in q("SELECT id, username, role FROM users ORDER BY id")]
-
-OWNER_ID = 1  # admin principal, criado no primeiro start
+    return q("SELECT id, username, role FROM users ORDER BY id")
 
 def guard(actor, uid, new_role=None):
     rows = q("SELECT role FROM users WHERE id=?", (uid,))
@@ -193,6 +204,7 @@ def delete_user(uid: int, u=Depends(need("admin"))):
 
 @app.get("/api/admin/logs")
 def logs(u=Depends(need("admin"))):
-    return [dict(r) for r in q("SELECT at, actor, action FROM audit ORDER BY id DESC LIMIT 20")]
+    return q("SELECT `at`, actor, action FROM audit ORDER BY id DESC LIMIT 20")
 
-app.mount("/", StaticFiles(directory=os.path.join(BASE, "static"), html=True))
+if PUBLIC:  # localmente serve o frontend; na Vercel a pasta public é servida pela plataforma
+    app.mount("/", StaticFiles(directory=PUBLIC, html=True))

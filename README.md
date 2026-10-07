@@ -1,6 +1,6 @@
 # 🔐 IronAuth
 
-API de autenticação em **FastAPI + SQLite** com frontend web, sessões com expiração, controle de cargos (RBAC), painel de administração e redefinição de senha por e-mail. Projeto de estudo sobre segurança de aplicações.
+API de autenticação em **FastAPI + MySQL** com frontend web, sessões com expiração, controle de cargos (RBAC), painel de administração e redefinição de senha por e-mail. Projeto de estudo sobre segurança de aplicações.
 
 ## Funcionalidades
 - Cadastro (usuário, e-mail e senha), login e logout
@@ -8,7 +8,7 @@ API de autenticação em **FastAPI + SQLite** com frontend web, sessões com exp
 - Cargos `user`, `mod` e `admin`
   - `mod` vê a lista de usuários
   - `admin` altera cargos e exclui contas, com confirmação em pop-up
-  - Apenas o **admin principal** gerencia outros admins
+  - Apenas o **admin principal** (ID 1) gerencia outros admins
 - Log de auditoria das ações, visível ao admin
 - Recuperação de senha por e-mail com link de uso único (15 minutos)
 
@@ -26,15 +26,26 @@ API de autenticação em **FastAPI + SQLite** com frontend web, sessões com exp
 
 > Durante os testes, encontrei uma falha: um admin secundário conseguia rebaixar o admin principal. Corrigi com a função `guard` em `main.py`.
 
+## Requisitos
+- Python 3.10 ou superior
+- Um servidor MySQL com um banco criado e um usuário com permissão de `SELECT`, `INSERT`, `UPDATE`, `DELETE` e `CREATE` nele
+- (Opcional) Uma conta Gmail com senha de app, para enviar o e-mail de redefinição
+
 ## Como rodar
 
-**1. Crie o ambiente e instale as dependências**
+**1. Baixe o projeto**
+```
+git clone https://github.com/Chxvzy/IronAuth.git
+cd IronAuth
+```
+
+**2. Crie o ambiente e instale as dependências**
 
 Windows:
 ```
 py -m venv .venv
 .venv\Scripts\activate
-pip install -r requirements.txt
+py -m pip install -r requirements.txt
 ```
 
 Mac/Linux:
@@ -44,38 +55,75 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-**2. Inicie o servidor**
+**3. Configure o arquivo `.env`**
+
+Copie o `.env.example` para `.env` e preencha os valores. O `.env` não vai para o GitHub.
+
+Windows:
 ```
-python -m uvicorn main:app --reload
+copy .env.example .env
+```
+Mac/Linux:
+```
+cp .env.example .env
 ```
 
-Abra http://localhost:8000. No primeiro start é criado o usuário `admin`, e a senha aparece no terminal (ou defina `ADMIN_PASSWORD`). A documentação das rotas fica em `/docs`.
+**4. Crie o banco no MySQL**
+```sql
+CREATE DATABASE IF NOT EXISTS alunos_IronAuth CHARACTER SET utf8mb4;
+```
+Use no `DB_NAME` exatamente o mesmo nome, com as mesmas maiúsculas. As tabelas são criadas sozinhas no primeiro start.
 
-### Variáveis de ambiente
+**5. Inicie o servidor**
+```
+py -m uvicorn main:app --reload
+```
+Abra http://localhost:8000. No primeiro start é criado o usuário `admin`: a senha aparece no terminal, ou é a definida em `ADMIN_PASSWORD`. A documentação das rotas fica em `/docs`.
+
+## Variáveis de ambiente (`.env`)
 | Variável | Para que serve |
 |---|---|
-| `ADMIN_PASSWORD` | Senha do admin criado no primeiro start |
-| `SMTP_HOST`, `SMTP_USER`, `SMTP_PASS` | Envio do e-mail de redefinição (ex.: Gmail com senha de app) |
+| `DB_HOST`, `DB_PORT` | Endereço e porta do MySQL (porta padrão: 3306) |
+| `DB_USER`, `DB_PASSWORD` | Usuário e senha do MySQL |
+| `DB_NAME` | Nome do banco (ex.: `alunos_IronAuth`) |
+| `DB_SSL` | `1` para conectar com TLS; `DB_SSL_CA` aponta para o certificado do servidor, se for autoassinado |
+| `ADMIN_PASSWORD` | Senha do admin, usada só na criação dele (primeiro start) |
+| `SMTP_HOST`, `SMTP_USER`, `SMTP_PASS` | Envio do e-mail de redefinição (Gmail: `smtp.gmail.com` e senha de app) |
 | `APP_URL` | Endereço público usado no link do e-mail (padrão: `http://localhost:8000`) |
-| `COOKIE_SECURE=1` | Cookie só por HTTPS (use em produção) |
+| `COOKIE_SECURE` | `1` para o cookie só trafegar por HTTPS (use em produção) |
 
 Sem `SMTP_*`, o link de redefinição aparece no terminal (modo de teste).
+
+## Trocar a senha do admin
+O `ADMIN_PASSWORD` só vale quando o admin é criado. Para trocar a senha de um admin que já existe, rode:
+```
+py set_admin_password.py
+```
+O script pede a nova senha (mínimo de 12 caracteres, sem mostrar na tela), grava só o hash no banco e encerra as sessões do admin.
+
+## Rodar em outro computador
+1. Instale Python e Git e repita os passos 1 e 2 acima.
+2. Leve o seu `.env` por um meio seguro (ele não está no GitHub) ou preencha um novo a partir do `.env.example`.
+3. Suba o servidor. Usuários, cargos e auditoria ficam no MySQL, então aparecem iguais em qualquer computador que acesse o mesmo banco.
 
 ## Rotas principais
 `POST /api/register` · `POST /api/login` · `POST /api/logout` · `GET /api/me` · `POST /api/forgot-password` · `POST /api/reset-password` · `GET /api/admin/users` · `PATCH /api/admin/users/{id}/role` · `DELETE /api/admin/users/{id}` · `GET /api/admin/logs`
 
 ## Estrutura
 ```
-main.py          rotas, regras de acesso e banco
-security.py      hash de senhas e tokens
-static/          frontend (HTML, CSS e JavaScript)
+main.py                  rotas, regras de acesso e acesso ao banco
+security.py              hash de senhas e tokens
+set_admin_password.py    troca a senha do admin pelo terminal
+static/                  frontend (HTML, CSS e JavaScript)
 requirements.txt
+.env.example             modelo das variáveis de ambiente
 ```
 
 ## Limitações
 - Sem testes automatizados, 2FA e limite de tentativas por IP
-- O admin criado automaticamente não tem e-mail, então não recupera senha pelo fluxo
-- SQLite em arquivo: em hospedagem serverless (como a Vercel), o banco seria apagado a cada reinício
+- O admin criado automaticamente não tem e-mail, então não recupera a senha pelo fluxo (use `set_admin_password.py`)
+- Cada operação abre uma nova conexão com o banco, o que é mais lento que um pool de conexões
+- O envio de e-mail é feito dentro da requisição, e por isso a resposta de "esqueci a senha" demora um pouco mais quando o e-mail existe
 
 ## Próximos passos
-Testes com pytest, GitHub Actions, 2FA (TOTP) e migração para PostgreSQL com deploy.
+Testes com pytest, GitHub Actions, 2FA (TOTP) e deploy.

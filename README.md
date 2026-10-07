@@ -2,8 +2,13 @@
 
 API de autenticação em **FastAPI + MySQL** com frontend web, sessões com expiração, controle de cargos (RBAC), painel de administração e redefinição de senha por e-mail. Projeto de estudo sobre segurança de aplicações.
 
+🌐 **Demo online:** https://iron-auth.vercel.app
+
+> É um projeto de estudo. Use apenas dados de teste e não cadastre senhas que você usa em outros lugares.
+
 ## Funcionalidades
-- Cadastro (usuário, e-mail e senha), login e logout
+- Cadastro (usuário, e-mail e senha), login com **usuário ou e-mail** e logout
+- Botão para mostrar e ocultar a senha nos formulários
 - Sessão por cookie `HttpOnly` e `SameSite=Strict`, com expiração de 30 minutos
 - Cargos `user`, `mod` e `admin`
   - `mod` vê a lista de usuários
@@ -27,19 +32,23 @@ API de autenticação em **FastAPI + MySQL** com frontend web, sessões com expi
 > Durante os testes, encontrei uma falha: um admin secundário conseguia rebaixar o admin principal. Corrigi com a função `guard` em `main.py`.
 
 ## Requisitos
-- Python 3.10 ou superior
+- Python 3.10 ou superior e Git
 - Um servidor MySQL com um banco criado e um usuário com permissão de `SELECT`, `INSERT`, `UPDATE`, `DELETE` e `CREATE` nele
 - (Opcional) Uma conta Gmail com senha de app, para enviar o e-mail de redefinição
 
-## Como rodar
+## Rodar localmente
 
-**1. Baixe o projeto**
+**1. Clone o repositório**
 ```
 git clone https://github.com/Chxvzy/IronAuth.git
 cd IronAuth
 ```
 
-**2. Crie o ambiente e instale as dependências**
+**2. Instale as dependências**
+```
+py -m pip install -r requirements.txt
+```
+Se preferir isolar em um ambiente virtual (recomendado):
 
 Windows:
 ```
@@ -47,7 +56,6 @@ py -m venv .venv
 .venv\Scripts\activate
 py -m pip install -r requirements.txt
 ```
-
 Mac/Linux:
 ```
 python3 -m venv .venv
@@ -55,9 +63,15 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-**3. Configure o arquivo `.env`**
+**3. Crie o banco no MySQL**
+```sql
+CREATE DATABASE IF NOT EXISTS alunos_IronAuth CHARACTER SET utf8mb4;
+```
+Use no `DB_NAME` exatamente o mesmo nome, com as mesmas maiúsculas. As tabelas são criadas sozinhas no primeiro start.
 
-Copie o `.env.example` para `.env` e preencha os valores. O `.env` não vai para o GitHub.
+**4. Crie o arquivo `.env`**
+
+Copie o modelo e preencha os valores. O `.env` nunca vai para o GitHub.
 
 Windows:
 ```
@@ -67,12 +81,7 @@ Mac/Linux:
 ```
 cp .env.example .env
 ```
-
-**4. Crie o banco no MySQL**
-```sql
-CREATE DATABASE IF NOT EXISTS alunos_IronAuth CHARACTER SET utf8mb4;
-```
-Use no `DB_NAME` exatamente o mesmo nome, com as mesmas maiúsculas. As tabelas são criadas sozinhas no primeiro start.
+Para rodar localmente, deixe `APP_URL=http://localhost:8000` e **não** use `COOKIE_SECURE=1` (o login não funciona em `http`).
 
 **5. Inicie o servidor**
 ```
@@ -80,7 +89,7 @@ py -m uvicorn main:app --reload
 ```
 Abra http://localhost:8000. No primeiro start é criado o usuário `admin`: a senha aparece no terminal, ou é a definida em `ADMIN_PASSWORD`. A documentação das rotas fica em `/docs`.
 
-## Variáveis de ambiente (`.env`)
+## Variáveis de ambiente
 | Variável | Para que serve |
 |---|---|
 | `DB_HOST`, `DB_PORT` | Endereço e porta do MySQL (porta padrão: 3306) |
@@ -89,10 +98,19 @@ Abra http://localhost:8000. No primeiro start é criado o usuário `admin`: a se
 | `DB_SSL` | `1` para conectar com TLS; `DB_SSL_CA` aponta para o certificado do servidor, se for autoassinado |
 | `ADMIN_PASSWORD` | Senha do admin, usada só na criação dele (primeiro start) |
 | `SMTP_HOST`, `SMTP_USER`, `SMTP_PASS` | Envio do e-mail de redefinição (Gmail: `smtp.gmail.com` e senha de app) |
-| `APP_URL` | Endereço público usado no link do e-mail (padrão: `http://localhost:8000`) |
+| `APP_URL` | Endereço público do site, usado no link do e-mail (local: `http://localhost:8000`) |
 | `COOKIE_SECURE` | `1` para o cookie só trafegar por HTTPS (use em produção) |
 
 Sem `SMTP_*`, o link de redefinição aparece no terminal (modo de teste).
+
+## Publicar na Vercel
+1. Envie o código para o GitHub. A pasta do frontend precisa se chamar `public`.
+2. Na Vercel, **Add New → Project**, importe o repositório. O FastAPI é detectado sem configuração.
+3. Em **Environment Variables**, cadastre as variáveis acima (`DB_*`, `SMTP_*`), com `COOKIE_SECURE=1`.
+4. Faça o primeiro deploy, copie o endereço do site e cadastre `APP_URL` com ele (por exemplo, `https://iron-auth.vercel.app`). Depois faça um **Redeploy**.
+5. A cada `git push`, a Vercel publica de novo sozinha.
+
+O banco continua no servidor MySQL. O site fica sempre no ar, mas o login e o cadastro dependem desse servidor estar ligado.
 
 ## Trocar a senha do admin
 O `ADMIN_PASSWORD` só vale quando o admin é criado. Para trocar a senha de um admin que já existe, rode:
@@ -102,9 +120,9 @@ py set_admin_password.py
 O script pede a nova senha (mínimo de 12 caracteres, sem mostrar na tela), grava só o hash no banco e encerra as sessões do admin.
 
 ## Rodar em outro computador
-1. Instale Python e Git e repita os passos 1 e 2 acima.
-2. Leve o seu `.env` por um meio seguro (ele não está no GitHub) ou preencha um novo a partir do `.env.example`.
-3. Suba o servidor. Usuários, cargos e auditoria ficam no MySQL, então aparecem iguais em qualquer computador que acesse o mesmo banco.
+1. Instale Python e Git e repita os passos 1 e 2 de "Rodar localmente".
+2. Crie o `.env` a partir do `.env.example`, com os mesmos dados do banco (leve-os por um meio seguro, porque o `.env` não está no GitHub).
+3. Suba o servidor. Usuários, cargos e auditoria ficam no MySQL, então aparecem iguais em qualquer computador que acesse o mesmo banco, inclusive no site publicado.
 
 ## Rotas principais
 `POST /api/register` · `POST /api/login` · `POST /api/logout` · `GET /api/me` · `POST /api/forgot-password` · `POST /api/reset-password` · `GET /api/admin/users` · `PATCH /api/admin/users/{id}/role` · `DELETE /api/admin/users/{id}` · `GET /api/admin/logs`
@@ -114,7 +132,7 @@ O script pede a nova senha (mínimo de 12 caracteres, sem mostrar na tela), grav
 main.py                  rotas, regras de acesso e acesso ao banco
 security.py              hash de senhas e tokens
 set_admin_password.py    troca a senha do admin pelo terminal
-static/                  frontend (HTML, CSS e JavaScript)
+public/                  frontend (HTML, CSS e JavaScript)
 requirements.txt
 .env.example             modelo das variáveis de ambiente
 ```
@@ -122,8 +140,6 @@ requirements.txt
 ## Limitações
 - Sem testes automatizados, 2FA e limite de tentativas por IP
 - O admin criado automaticamente não tem e-mail, então não recupera a senha pelo fluxo (use `set_admin_password.py`)
-- Cada operação abre uma nova conexão com o banco, o que é mais lento que um pool de conexões
+- O site publicado e o ambiente local usam o mesmo banco, então testes locais aparecem no site online
 - O envio de e-mail é feito dentro da requisição, e por isso a resposta de "esqueci a senha" demora um pouco mais quando o e-mail existe
-
-## Próximos passos
-Testes com pytest, GitHub Actions, 2FA (TOTP) e deploy.
+- Os cabeçalhos de segurança (CSP e outros) são aplicados às rotas da API; a página estática servida pela Vercel não passa por eles

@@ -38,8 +38,9 @@ const roleCell = r => { const td = document.createElement("td"), s = document.cr
 const cell = v => { const td = document.createElement("td"); td.textContent = v; return td; };
 
 async function panel(me) {
+  const [users, logs] = await Promise.all([api("admin/users"), me.role === "admin" ? api("admin/logs") : Promise.resolve([])]);
   const tb = $("#rows"); tb.replaceChildren();
-  for (const u of await api("admin/users")) {
+  for (const u of users) {
     const tr = document.createElement("tr"); tr.append(cell(u.id), cell(u.username), roleCell(u.role));
     const td = document.createElement("td");
     if (me.role === "admin" && u.id !== me.id) {
@@ -53,10 +54,11 @@ async function panel(me) {
     tr.append(td); tb.append(tr);
   }
   $("#logbox").hidden = me.role !== "admin";
-  if (me.role === "admin") $("#logs").replaceChildren(...(await api("admin/logs")).map(l => {
+  if (me.role === "admin") $("#logs").replaceChildren(...logs.map(l => {
     const li = document.createElement("li"), t = document.createElement("span"); t.className = "time"; t.textContent = new Date(l.at * 1000).toLocaleString();
     li.append(t, ` ${l.actor}: ${l.action}`); return li; }));
 }
+
 async function home() {
   try {
     const me = await api("me");

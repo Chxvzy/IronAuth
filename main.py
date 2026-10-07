@@ -1,6 +1,7 @@
 import os, ssl, secrets, time, smtplib
 from email.message import EmailMessage
 import pymysql
+import threading
 from pymysql.cursors import DictCursor
 from dotenv import load_dotenv
 from fastapi import FastAPI, Depends, HTTPException, Response, Cookie
@@ -26,18 +27,25 @@ def tls():
         return ssl.create_default_context()
     return None
 
+_local = threading.local()  # uma conexão por thread, reaproveitada entre as consultas
+
 def q(sql, args=()):
-    con = pymysql.connect(
-        host=os.getenv("DB_HOST"), port=int(os.getenv("DB_PORT", "3306")),
-        user=os.getenv("DB_USER"), password=os.getenv("DB_PASSWORD"),
-        database=os.getenv("DB_NAME", "alunos_ironauth"),
-        cursorclass=DictCursor, autocommit=True, connect_timeout=10, ssl=tls())
-    try:
-        with con.cursor() as cur:
-            cur.execute(sql.replace("?", "%s"), args)  # sempre parametrizado
-            return list(cur.fetchall())
-    finally:
-        con.close()
+    for attempt in (1, 2):
+        try:
+            con = getattr(_local, "con", None)
+            if con is None:
+                con = _local.con = pymysql.connect(
+                    host=os.getenv("DB_HOST"), port=int(os.getenv("DB_PORT", "3306")),
+                    user=os.getenv("DB_USER"), password=os.getenv("DB_PASSWORD"),
+                    database=os.getenv("DB_NAME", "alunos_IronAuth"),
+                    cursorclass=DictCursor, autocommit=True, connect_timeout=10, ssl=tls())
+            with con.cursor() as cur:
+                cur.execute(sql.replace("?", "%s"), args)  # sempre parametrizado
+                return list(cur.fetchall())
+        except (pymysql.err.OperationalError, pymysql.err.InterfaceError):
+            _local.con = None  # a conexão caiu: reconecta e tenta mais uma vez
+            if attempt == 2:
+                raise
 
 def log(actor, action):
     q("INSERT INTO audit(`at`, actor, action) VALUES(?,?,?)", (time.time(), actor, action))
@@ -116,7 +124,8 @@ def login(c: Login, resp: Response):
             lock = f >= MAX_FAILS
             q("UPDATE users SET fails=?, locked_until=? WHERE id=?", (0 if lock else f, time.time() + LOCK_MIN * 60 if lock else 0, u["id"]))
         raise HTTPException(401, "Usuário ou senha inválidos.")
-    q("UPDATE users SET fails=0, locked_until=0 WHERE id=?", (u["id"],))
+    if u["fails"] or u["locked_until"]:
+        q("UPDATE users SET fails=0, locked_until=0 WHERE id=?", (u["id"],))
     tok = new_token()
     q("INSERT INTO sessions VALUES(?,?,?)", (sha(tok), u["id"], time.time() + SESSION_MIN * 60))
     resp.set_cookie("session", tok, max_age=SESSION_MIN * 60, httponly=True, samesite="strict", secure=os.getenv("COOKIE_SECURE") == "1")

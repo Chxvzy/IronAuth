@@ -206,5 +206,5 @@ def delete_user(uid: int, u=Depends(need("admin"))):
 def logs(u=Depends(need("admin"))):
     return q("SELECT `at`, actor, action FROM audit ORDER BY id DESC LIMIT 20")
 
-if PUBLIC:  # localmente serve o frontend; na Vercel a pasta public é servida pela plataforma
+if PUBLIC and not os.getenv("VERCEL"):  # localmente o FastAPI serve o frontend; na Vercel quem serve é a pasta public
     app.mount("/", StaticFiles(directory=PUBLIC, html=True))

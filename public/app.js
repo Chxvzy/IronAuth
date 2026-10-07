@@ -58,7 +58,6 @@ async function panel(me) {
     const li = document.createElement("li"), t = document.createElement("span"); t.className = "time"; t.textContent = new Date(l.at * 1000).toLocaleString();
     li.append(t, ` ${l.actor}: ${l.action}`); return li; }));
 }
-
 async function home() {
   try {
     const me = await api("me");
@@ -68,9 +67,14 @@ async function home() {
     if (me.role !== "user") await panel(me);
   } catch { view("auth"); }
 }
+
+// Volta os campos de senha para o modo oculto
+function hidePw(f) {
+  f.querySelectorAll(".pw input").forEach(i => { if (i.type === "text") i.nextElementSibling.click(); });
+}
 const submit = (sel, fn) => $(sel).onsubmit = async e => {
   e.preventDefault(); const f = e.target;
-  try { await fn(Object.fromEntries(new FormData(f))); f.reset(); } catch (x) { msg(x.message); }
+  try { await fn(Object.fromEntries(new FormData(f))); f.reset(); hidePw(f); } catch (x) { msg(x.message); }
 };
 submit("#login", async d => { await api("login", "POST", d); msg(); home(); });
 submit("#register", async d => { await api("register", "POST", d); msg("Conta criada! Faça login.", 1); tab("login"); });
@@ -80,6 +84,23 @@ document.querySelectorAll("[data-tab]").forEach(b => b.onclick = () => tab(b.dat
 $("#toforgot").onclick = e => { e.preventDefault(); msg(); view("forgot"); };
 $("#back").onclick = e => { e.preventDefault(); msg(); view("auth"); };
 $("#out").onclick = async () => { await api("logout", "POST"); msg(); view("auth"); };
+
+// Olho para mostrar/ocultar senha em todos os campos de senha
+const EYE = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg>';
+const EYE_OFF = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.9 10.9 0 0 1 12 19c-7 0-11-7-11-7a19.8 19.8 0 0 1 5.06-5.94M9.9 4.24A10.9 10.9 0 0 1 12 5c7 0 11 7 11 7a19.8 19.8 0 0 1-3.17 4.19M1 1l22 22"/><path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"/></svg>';
+document.querySelectorAll('input[type="password"]').forEach(inp => {
+  const wrap = document.createElement("div"); wrap.className = "pw";
+  inp.replaceWith(wrap); wrap.append(inp);
+  const b = document.createElement("button");
+  b.type = "button"; b.className = "eye"; b.setAttribute("aria-label", "Mostrar senha"); b.innerHTML = EYE;
+  b.onclick = () => {
+    const show = inp.type === "password";
+    inp.type = show ? "text" : "password";
+    b.innerHTML = show ? EYE_OFF : EYE;
+    b.setAttribute("aria-label", show ? "Ocultar senha" : "Mostrar senha");
+  };
+  wrap.append(b);
+});
 
 // Link do e-mail (#reset=token): abre direto a tela de nova senha
 const m = location.hash.match(/^#reset=([\w-]+)$/);

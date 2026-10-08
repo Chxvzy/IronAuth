@@ -1,5 +1,8 @@
 const $ = s => document.querySelector(s);
-const view = id => document.querySelectorAll("section").forEach(s => s.hidden = s.id !== id);
+const view = id => {
+  document.querySelectorAll("section").forEach(s => s.hidden = s.id !== id);
+  if (id !== "home") document.querySelector("main").classList.remove("wide"); // volta ao tamanho normal fora do painel
+};
 const tab = n => {
   $("#login").hidden = n !== "login";
   $("#register").hidden = n !== "register";
@@ -83,7 +86,7 @@ submit("#reset", async d => { msg((await api("reset-password", "POST", d)).messa
 document.querySelectorAll("[data-tab]").forEach(b => b.onclick = () => tab(b.dataset.tab));
 $("#toforgot").onclick = e => { e.preventDefault(); msg(); view("forgot"); };
 $("#back").onclick = e => { e.preventDefault(); msg(); view("auth"); };
-$("#out").onclick = async () => { await api("logout", "POST"); msg(); view("auth"); };
+$("#out").onclick = async () => { await api("logout", "POST"); msg(); tab("login"); view("auth"); };
 
 // Olho para mostrar/ocultar senha em todos os campos de senha
 const EYE = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg>';

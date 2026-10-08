@@ -1,10 +1,11 @@
-import os, ssl, secrets, time, smtplib
+import os, ssl, secrets, time, smtplib, threading, random
+from urllib.parse import urlparse
 from email.message import EmailMessage
 import pymysql
-import threading
 from pymysql.cursors import DictCursor
 from dotenv import load_dotenv
-from fastapi import FastAPI, Depends, HTTPException, Response, Cookie
+from fastapi import FastAPI, Depends, HTTPException, Response, Cookie, Request
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from security import hash_password, verify_password, new_token, sha
@@ -47,7 +48,7 @@ def q(sql, args=()):
             if attempt == 2:
                 raise
 
-def log(actor, action):
+def log(actor, action, ip=None):
     q("INSERT INTO audit(`at`, actor, action) VALUES(?,?,?)", (time.time(), actor, action))
 
 def init():
@@ -55,6 +56,7 @@ def init():
     q("CREATE TABLE IF NOT EXISTS sessions(token_hash CHAR(64) PRIMARY KEY, user_id BIGINT, expires DOUBLE) DEFAULT CHARSET=utf8mb4")
     q("CREATE TABLE IF NOT EXISTS resets(token_hash CHAR(64) PRIMARY KEY, user_id BIGINT, expires DOUBLE, used INT DEFAULT 0) DEFAULT CHARSET=utf8mb4")
     q("CREATE TABLE IF NOT EXISTS audit(id BIGINT AUTO_INCREMENT PRIMARY KEY, `at` DOUBLE, actor VARCHAR(40), action VARCHAR(120)) DEFAULT CHARSET=utf8mb4")
+    q("CREATE TABLE IF NOT EXISTS ratelimit(ip VARCHAR(64), bucket VARCHAR(16), win BIGINT, hits INT DEFAULT 0, expires DOUBLE, PRIMARY KEY(ip, bucket, win)) DEFAULT CHARSET=utf8mb4")
     if not q("SELECT 1 FROM users LIMIT 1"):
         pw = os.getenv("ADMIN_PASSWORD") or secrets.token_urlsafe(10)
         q("INSERT IGNORE INTO users(username, password_hash, role, created_at) VALUES('admin', ?, 'admin', ?)", (hash_password(pw), time.time()))
@@ -62,14 +64,40 @@ def init():
 
 init()  # roda ao carregar (também no cold start da Vercel)
 
+# ---------- Limite de requisições por IP (guardado no banco, vale entre instâncias) ----------
+def client_ip(request: Request):
+    fwd = request.headers.get("x-forwarded-for")
+    if fwd and os.getenv("VERCEL"):  # só confia no cabeçalho quando está atrás da Vercel
+        return fwd.split(",")[0].strip()[:64]
+    return (request.client.host if request.client else "?")[:64]
+
+def rate_limit(request: Request, bucket: str, limit: int, window_s: int):
+    ip, now = client_ip(request), time.time()
+    win = int(now // window_s)
+    q("INSERT INTO ratelimit(ip, bucket, win, hits, expires) VALUES(?,?,?,1,?) ON DUPLICATE KEY UPDATE hits=hits+1",
+      (ip, bucket, win, (win + 1) * window_s))
+    hits = q("SELECT hits FROM ratelimit WHERE ip=? AND bucket=? AND win=?", (ip, bucket, win))[0]["hits"]
+    if random.random() < 0.02:  # limpeza ocasional de janelas antigas
+        q("DELETE FROM ratelimit WHERE expires < ?", (now,))
+    if hits > limit:
+        raise HTTPException(429, "Muitas tentativas. Aguarde alguns minutos e tente de novo.")
+
+# ---------- Cabeçalhos de segurança e verificação de origem (CSRF) ----------
 @app.middleware("http")
 async def security_headers(request, call_next):
+    if request.method in ("POST", "PUT", "PATCH", "DELETE") and request.url.path.startswith("/api"):
+        origin = request.headers.get("origin")
+        if origin and urlparse(origin).netloc != request.headers.get("host"):
+            return JSONResponse({"detail": "Origem não permitida."}, status_code=403)
     r = await call_next(request)
     if not request.url.path.startswith(("/docs", "/openapi")):
-        r.headers["Content-Security-Policy"] = "default-src 'self'"
+        r.headers["Content-Security-Policy"] = "default-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
     r.headers["X-Content-Type-Options"] = "nosniff"
     r.headers["X-Frame-Options"] = "DENY"
     r.headers["Referrer-Policy"] = "no-referrer"
+    r.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+    if os.getenv("COOKIE_SECURE") == "1":
+        r.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     return r
 
 class Cred(BaseModel):
@@ -102,7 +130,8 @@ def need(*roles):
     return dep
 
 @app.post("/api/register", status_code=201)
-def register(c: Cred):
+def register(c: Cred, request: Request):
+    rate_limit(request, "register", 5, 3600)  # 5 cadastros por hora por IP
     try:
         q("INSERT INTO users(username, email, password_hash, created_at) VALUES(?,?,?,?)",
           (c.username, c.email.strip().lower(), hash_password(c.password), time.time()))
@@ -112,7 +141,8 @@ def register(c: Cred):
     return {"ok": True}
 
 @app.post("/api/login")
-def login(c: Login, resp: Response):
+def login(c: Login, request: Request, resp: Response):
+    rate_limit(request, "login", 10, 300)  # 10 tentativas a cada 5 minutos por IP
     ident = c.username.strip()
     if "@" in ident:  # entrou com e-mail
         rows = q("SELECT * FROM users WHERE email=?", (ident.lower(),))
@@ -164,7 +194,8 @@ def send_reset(to, token):
         print("[IronAuth] erro ao enviar e-mail:", e)
 
 @app.post("/api/forgot-password")
-def forgot(f: Forgot):
+def forgot(f: Forgot, request: Request):
+    rate_limit(request, "forgot", 5, 3600)  # 5 pedidos por hora por IP (protege a conta de e-mail)
     email = f.email.strip().lower()
     rows = q("SELECT id FROM users WHERE email=?", (email,))
     if rows:
@@ -174,7 +205,8 @@ def forgot(f: Forgot):
     return {"message": "Se o e-mail estiver cadastrado, enviamos um link para redefinir a senha."}
 
 @app.post("/api/reset-password")
-def reset(r: Reset):
+def reset(r: Reset, request: Request):
+    rate_limit(request, "reset", 10, 3600)  # 10 tentativas por hora por IP
     rows = q("SELECT * FROM resets WHERE token_hash=? AND used=0 AND expires>?", (sha(r.token), time.time()))
     if not rows:
         raise HTTPException(400, "Token inválido ou expirado.")
